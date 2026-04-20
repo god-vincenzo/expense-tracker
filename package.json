@@ -2,7 +2,7 @@
   "name": "expense-tracker-frontend",
   "version": "1.0.0",
   "private": true,
-  "homepage": ".",
+  "homepage": "https://god-vincenzo.github.io/expense-tracker",
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.1",
     "chart.js": "^4.4.2",
