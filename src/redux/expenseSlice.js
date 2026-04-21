@@ -1,95 +1,68 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-
-// ─── localStorage helpers ───────────────────────────────────────
-const STORAGE_KEY = 'spendwise_expenses';
-
-const loadExpenses = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveExpenses = (expenses) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses));
-};
-
-let nextId = (() => {
-  const all = loadExpenses();
-  return all.length > 0 ? Math.max(...all.map(e => e.id)) + 1 : 1;
-})();
+import { expenseAPI } from '../services/api';
 
 // ─── Thunks ─────────────────────────────────────────────────────
-export const fetchExpenses = createAsyncThunk('expenses/fetchAll', async (filters = {}) => {
-  let expenses = loadExpenses();
-  if (filters.startDate) expenses = expenses.filter(e => e.date >= filters.startDate);
-  if (filters.endDate) expenses = expenses.filter(e => e.date <= filters.endDate);
-  if (filters.category) expenses = expenses.filter(e => e.category === filters.category);
-  return expenses;
+export const fetchExpenses = createAsyncThunk('expenses/fetchAll', async (filters = {}, { rejectWithValue }) => {
+  try {
+    const response = await expenseAPI.getAll(filters);
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.error || error.message);
+  }
 });
 
-export const createExpense = createAsyncThunk('expenses/create', async (expense) => {
-  const all = loadExpenses();
-  const newExpense = { ...expense, id: nextId++ };
-  all.push(newExpense);
-  saveExpenses(all);
-  return newExpense;
+export const createExpense = createAsyncThunk('expenses/create', async (expense, { rejectWithValue }) => {
+  try {
+    const response = await expenseAPI.create(expense);
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.error || error.message);
+  }
 });
 
-export const updateExpense = createAsyncThunk('expenses/update', async ({ id, expense }) => {
-  const all = loadExpenses();
-  const idx = all.findIndex(e => e.id === id);
-  if (idx === -1) throw new Error('Expense not found');
-  const updated = { ...all[idx], ...expense, id };
-  all[idx] = updated;
-  saveExpenses(all);
-  return updated;
+export const updateExpense = createAsyncThunk('expenses/update', async ({ id, expense }, { rejectWithValue }) => {
+  try {
+    const response = await expenseAPI.update(id, expense);
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.error || error.message);
+  }
 });
 
-export const deleteExpense = createAsyncThunk('expenses/delete', async (id) => {
-  let all = loadExpenses();
-  all = all.filter(e => e.id !== id);
-  saveExpenses(all);
-  return id;
+export const deleteExpense = createAsyncThunk('expenses/delete', async (id, { rejectWithValue }) => {
+  try {
+    await expenseAPI.delete(id);
+    return id;
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.error || error.message);
+  }
 });
 
-export const fetchMonthlySummary = createAsyncThunk('expenses/monthlySum', async () => {
-  const all = loadExpenses();
-  const map = {};
-  all.forEach(e => {
-    const month = new Date(e.date).getMonth() + 1;
-    map[month] = (map[month] || 0) + e.amount;
-  });
-  return Object.entries(map)
-    .map(([month, total]) => ({ month: Number(month), total }))
-    .sort((a, b) => a.month - b.month);
+export const fetchMonthlySummary = createAsyncThunk('expenses/monthlySum', async (_, { rejectWithValue }) => {
+  try {
+    const response = await expenseAPI.getMonthlySummary();
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.error || error.message);
+  }
 });
 
-export const fetchCategorySummary = createAsyncThunk('expenses/categorySum', async () => {
-  const all = loadExpenses();
-  const map = {};
-  all.forEach(e => {
-    map[e.category] = (map[e.category] || 0) + e.amount;
-  });
-  return Object.entries(map)
-    .map(([category, total]) => ({ category, total }))
-    .sort((a, b) => b.total - a.total);
+export const fetchCategorySummary = createAsyncThunk('expenses/categorySum', async (_, { rejectWithValue }) => {
+  try {
+    const response = await expenseAPI.getCategorySummary();
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.error || error.message);
+  }
 });
 
-export const fetchDashboardStats = createAsyncThunk('expenses/stats', async () => {
-  const all = loadExpenses();
-  const totalExpenses = all.reduce((s, e) => s + e.amount, 0);
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
-  const currentMonthTotal = all
-    .filter(e => {
-      const d = new Date(e.date);
-      return d.getMonth() + 1 === currentMonth && d.getFullYear() === currentYear;
-    })
-    .reduce((s, e) => s + e.amount, 0);
-  return { totalExpenses, currentMonthTotal, totalTransactions: all.length };
+export const fetchDashboardStats = createAsyncThunk('expenses/stats', async (_, { rejectWithValue }) => {
+  try {
+    const response = await expenseAPI.getDashboardStats();
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.error || error.message);
+  }
 });
 
 // ─── Slice ──────────────────────────────────────────────────────
